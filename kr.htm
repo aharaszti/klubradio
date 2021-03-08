@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html xml:lang="en" lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8"; http-equiv="Content-Type" content="text/html" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klubrádió</title>
+
+<script>
+function playinghandler(event) {
+var a;
+  a = document.getElementById("KR1")
+  console.log("Playing handler "+change+" src "+a.src);
+
+}
+var xhr = new XMLHttpRequest();
+var url = [
+  "http://hu-stream02.klubradio.hu:8080",
+  "http://hu-stream03.klubradio.hu:8080",
+  "http://hu-stream04.klubradio.hu:8080",
+  "http://hu-stream05.klubradio.hu:8080",
+  "http://hu-stream06.klubradio.hu:8080",
+  "http://hu-stream07.klubradio.hu:8080"
+  ];
+var listeners=[0,0,0,0,0,0];
+var rtd=[0,0,0,0,0,0];
+var current_server = 0;
+var old_server = 0;
+var play_server  = 0;
+var sum_listener = 0;
+var start_time;
+var init_done = 0;
+var change = 0;
+var mytimeout;
+
+xhr.onreadystatechange = function() {
+    if (this.readyState == 4) 
+     if (this.status == 200) {
+        var myArr = JSON.parse(this.responseText);
+        myFunction(myArr);
+     } else {
+       // console.log("readystate "+this.readyState+" "+this.status+" current "+current_server);
+       myonerror();
+     }
+}
+get_status = function() {
+var d = new Date();
+    xhr.open("GET", url[current_server]+"/status-json.xsl", true);
+//    clearTimeout(mytimeout);
+//
+// set timeout to 3 seconds
+//
+//    mytimeout = setTimeout(function(){
+//      xhr.abort();
+//      console.log("abort");
+//      xhr.onerror("abort");
+//      },5000);
+    start_time = d.getTime();
+    xhr.send();
+
+}
+myonerror = function(e) {
+  rtd[current_server] = 999999;
+  console.log("onerror: "+current_server);
+  document.getElementById("id0"+String(current_server)).innerHTML = "Hiba";
+  document.getElementById("rtd0"+String(current_server)).innerHTML = "--"; 
+  listeners[current_server] = 999999;
+  current_server++;
+  if (url[current_server]) {
+    get_status();
+  } else select_server();
+  if (e) console.log("error "+e);
+}
+
+function myFunction(arr) {
+var d = new Date();
+  rtd[current_server] = d.getTime() - start_time;
+//  console.log("rtd: "+String(rtd[current_server]));
+  listeners[current_server] = arr.icestats.source[0].listeners + arr.icestats.source[1].listeners;
+  document.getElementById("id0"+String(current_server)).innerHTML = String(listeners[current_server]);
+  document.getElementById("rtd0"+String(current_server)).innerHTML = String(rtd[current_server]); 
+  current_server++;
+  if (url[current_server]) {
+    get_status();
+  } else select_server();
+}
+
+function getall() {
+  if (xhr.readyState == 0 || xhr.readyState == 4) {
+    current_server = 0;
+    get_status();
+  }
+}
+
+function next_server() {
+  var a;
+  if (old_server != play_server) {
+    a = document.getElementById("KR1")
+    a.src = url[play_server]+"/bpstream";
+    //a.play();
+    document.getElementById("curr").innerHTML = url[play_server]+"/bpstream";
+  old_server=play_server;
+  document.getElementById("chg").innerHTML = String(change);
+  change++;
+  init_done=1;
+  }
+}
+
+function select_server() {
+  var i = 0;
+  var c = old_server;
+  var l = listeners[old_server];
+  sum_listener = 0;
+  while (url[i]) {
+    if (listeners[i] < l-(init_done*300)) { 
+      l = listeners[i];
+      c = i;
+    };
+    if (listeners[i] < 999998) sum_listener += listeners[i];
+    i++;
+  }
+  document.getElementById("sum").innerHTML = String(sum_listener);
+  play_server = c;
+//  console.log("select "+c+","+l+" listeners "+listeners);
+  next_server();
+}
+function change_server() {
+var a;
+  listeners[old_server] = 999999;
+  console.log("Change server old "+old_server+" play "+play_server);
+  a = document.getElementById("KR1")
+  console.log("change server src "+a.src);
+  select_server();
+}
+function onloadhandler(event) {
+  xhr.timeout = 2000;
+//  console.log("timeout "+String(xhr.timeout));
+  getall();
+  old_server=current_server;
+  setInterval(getall,20000);
+}
+
+</script>
+<style>
+body {
+font-size:min(3vw,22px);
+max-width:800px;
+}
+table, th, td {
+  border: 1px solid black;
+}
+
+th, td .center{
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media screen and (max-width: 800px) {
+  .left, .main, .right {
+    width: 100%; /* The width is 100%, when the viewport is 800px or smaller */
+  }
+}
+</style>
+</head>
+<body onload=onloadhandler()>
+<img src="http://klubradio.hu/static/frontend/imgs/audio_header2.png" style="width:100%">
+<audio 
+  style="width:100%;"
+  id="KR1" 
+  src="" 
+  controls
+  preload="none"
+  autoplay=false
+  type="audio/mp3"
+  onplaying=playinghandler()
+  onwaiting=change_server()
+  >
+</audio>
+<br>
+Aktuális szerver: 
+<span id="curr">   </span>
+<br>
+Stream váltások száma:
+<span id="chg">   </span>
+<table style="width:100%">
+<tr>
+  <th style="text-align:center">Stream 2</th>
+  <th style="text-align:center">Stream 3</th>
+  <th style="text-align:center">Stream 4</th>
+  <th style="text-align:center">Stream 5</th>
+  <th style="text-align:center">Stream 6</th>
+  <th style="text-align:center">Stream 7</th>
+  <th style="text-align:center">Összesen</th>
+</tr>
+<tr>
+  <td style="text-align:center"><div id="id00">__</div></td>
+  <td style="text-align:center"><div id="id01">__</div></td>
+  <td style="text-align:center"><div id="id02">__</div></td>
+  <td style="text-align:center"><div id="id03">__</div></td>
+  <td style="text-align:center"><div id="id04">__</div></td>
+  <td style="text-align:center"><div id="id05">__</div></td>
+  <td style="text-align:center"><div id="sum">__</div></td>
+</tr>
+<tr>
+  <td style="text-align:center"><div id="rtd00">__</div></td>
+  <td style="text-align:center"><div id="rtd01">__</div></td>
+  <td style="text-align:center"><div id="rtd02">__</div></td>
+  <td style="text-align:center"><div id="rtd03">__</div></td>
+  <td style="text-align:center"><div id="rtd04">__</div></td>
+  <td style="text-align:center"><div id="rtd05">__</div></td>
+  <td style="text-align:center"><div id="ave">__</div></td>
+</tr>
+
+</table>
+<img src="http://klubradio.hu/static/frontend/imgs/audio_footer.png" style="width:100%">
+</body>
